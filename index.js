@@ -28,7 +28,7 @@ async function login() {
 app.post("/apply", async (req, res) => {
     const { userId, username, percentage } = req.body;
 
-    if (!userId || !username || percentage == nil) {
+    if (!userId || !username || percentage === undefined || percentage === null) {
         return res.status(400).json({ success: false, message: "Missing fields." });
     }
 
