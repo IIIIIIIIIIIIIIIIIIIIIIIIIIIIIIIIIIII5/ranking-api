@@ -111,3 +111,6 @@ app.get('/ping', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 API running on port ${PORT}`);
 });
+
+console.log('✅ API_KEY loaded:', !!process.env.API_KEY);
+console.log('✅ GROUP_ID loaded:', process.env.GROUP_ID);
