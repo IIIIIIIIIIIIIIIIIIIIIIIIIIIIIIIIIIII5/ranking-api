@@ -72,27 +72,23 @@ app.post('/promote', async (req, res) => {
     console.log('[PROMOTE] userId:', userId);
 
     const roles = await getGroupRoles();
-    roles.sort((a, b) => a.rank - b.rank);
-
     const currentRole = await getUserRole(userId);
     if (!currentRole) return res.status(400).json({ error: 'User not in group' });
 
-    console.log('Current role:', currentRole);
-
     const currentIndex = roles.findIndex(r => r.id === currentRole.id);
-    if (currentIndex === -1) return res.status(400).json({ error: 'Current role not found in group roles' });
-    if (currentIndex >= roles.length - 1) {
-      return res.status(400).json({ error: 'User is at highest rank' });
+    if (currentIndex === -1 || currentIndex >= roles.length - 1) {
+      return res.status(400).json({ error: 'User is at highest rank or not found' });
     }
 
     const nextRole = roles[currentIndex + 1];
-    console.log('Promoting to:', nextRole);
-
     await updateRole(userId, nextRole.id);
     res.json({ success: true, message: `User promoted to ${nextRole.name}` });
   } catch (err) {
-    console.error('Error promoting user:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error promoting user:', err.response?.data || err.message || err);
+
+    return res.status(err.response?.status || 500).json({
+      error: err.response?.data || err.message || 'Internal server error'
+    });
   }
 });
 
