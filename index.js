@@ -70,6 +70,10 @@ app.post('/demote', async (req, res) => {
     res.json({ success: true, message: `User demoted to ${prevRole.name}` });
 });
 
+app.get('/', (req, res) => {
+    res.send('✅ Roblox Rank API is running!');
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 API running on http://localhost:${PORT}`);
 });
