@@ -29,17 +29,16 @@ async function getUserRole(userId) {
   }
 }
 
-async function updateRole(userId, roleSetId) {
+async function updateRole(userId, roleId) {
   try {
-    const url = `https://apis.roblox.com/groups/v1/groups/${GROUP_ID}/users/${userId}`;
-    console.log(`🔁 PATCH to ${url} with roleSetId: ${roleSetId}`);
-    
-    const response = await axios.patch(url, { roleSetId }, { headers });
+    const url = `https://groups.roblox.com/v1/groups/${GROUP_ID}/users/${userId}`;
+    console.log(`🔁 PATCH to ${url} with roleId: ${roleId}`);
+
+    const response = await axios.patch(url, { roleId }, { headers });
     console.log('✅ PATCH success:', response.status);
     return response;
   } catch (err) {
-    console.error('❌ PATCH error:');
-    console.error(err.response?.data || err.message || err);
+    console.error('❌ PATCH error:', err.response?.data || err.message);
     throw err;
   }
 }
@@ -60,15 +59,22 @@ app.post('/promote', async (req, res) => {
     console.log('[PROMOTE] userId:', userId);
 
     const roles = await getGroupRoles();
+    roles.sort((a, b) => a.rank - b.rank);
+
     const currentRole = await getUserRole(userId);
     if (!currentRole) return res.status(400).json({ error: 'User not in group' });
 
+    console.log('Current role:', currentRole);
+
     const currentIndex = roles.findIndex(r => r.id === currentRole.id);
-    if (currentIndex === -1 || currentIndex >= roles.length - 1) {
-      return res.status(400).json({ error: 'User is at highest rank or not found' });
+    if (currentIndex === -1) return res.status(400).json({ error: 'Current role not found in group roles' });
+    if (currentIndex >= roles.length - 1) {
+      return res.status(400).json({ error: 'User is at highest rank' });
     }
 
     const nextRole = roles[currentIndex + 1];
+    console.log('Promoting to:', nextRole);
+
     await updateRole(userId, nextRole.id);
     res.json({ success: true, message: `User promoted to ${nextRole.name}` });
   } catch (err) {
