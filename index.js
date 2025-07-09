@@ -46,10 +46,11 @@ async function updateRole(userId, roleSetId) {
 
 app.get('/getroles', async (req, res) => {
   try {
-    const roles = await getGroupRoles();
-    res.json(roles);
+    const roles = await axios.get(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
+    res.json(roles.data.roles);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get roles' });
+    console.error(err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to fetch roles' });
   }
 });
 
