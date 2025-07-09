@@ -90,6 +90,25 @@ app.post('/demote', async (req, res) => {
     res.json({ success: true, message: `User demoted to ${prevRole.name}` });
 });
 
+app.get('/debug-user/:id', async (req, res) => {
+    const userId = req.params.id;
+
+    try {
+        const res1 = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
+        const groupData = res1.data.data.find(g => g.group.id == GROUP_ID);
+        if (!groupData) return res.status(404).json({ error: 'User not in group' });
+
+        res.json({
+            userId: userId,
+            groupRole: groupData.role,
+            groupRank: groupData.role.rank
+        });
+    } catch (err) {
+        console.error('Debug error:', err.response?.data || err.message);
+        res.status(500).json({ error: 'Failed to fetch user role' });
+    }
+});
+
 app.get('/', (req, res) => {
     res.send('✅ Roblox Rank API is running!');
 });
