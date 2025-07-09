@@ -1,148 +1,53 @@
 const express = require('express');
 const axios = require('axios');
-const app = express();
 
+const app = express();
 app.use(express.json());
 
 const API_KEY = process.env.API_KEY;
-const GROUP_ID = Number(process.env.GROUP_ID);
-const PORT = process.env.PORT || 3000;
+const GROUP_ID = process.env.GROUP_ID;
 
-const headers = {
-  'x-api-key': API_KEY,
-  'Content-Type': 'application/json'
-};
+app.get('/get-rank/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    try {
+        const response = await axios.get(
+            `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/users/${userId}/roles`,
+            {
+                headers: {
+                    'x-api-key': API_KEY,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
 
-async function getGroupRoles() {
-  const res = await axios.get(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
-  return res.data.roles;
-}
-
-try {
-  await axios.patch(url, data, { headers });
-} catch (err) {
-  if (err.response && err.response.status === 409) {
-    const csrfToken = err.response.headers['x-csrf-token'];
-
-    const newHeaders = { ...headers, 'X-CSRF-TOKEN': csrfToken };
-    await axios.patch(url, data, { headers: newHeaders });
-  } else {
-    throw err;
-  }
-}
-
-async function getUserRole(userId) {
-  try {
-    const res = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
-    const group = res.data.data.find(g => g.group.id === GROUP_ID);
-    return group ? group.role : null;
-  } catch (err) {
-    console.error('Error fetching user role:', err.response?.data || err.message);
-    return null;
-  }
-}
-
-async function updateRole(userId, roleId) {
-  try {
-    const url = `https://groups.roblox.com/v1/groups/${GROUP_ID}/users/${userId}`;
-    console.log(`🔁 PATCH to ${url} with roleId: ${roleId}`);
-
-    const response = await axios.patch(url, { roleId }, { headers });
-    console.log('✅ PATCH success:', response.status);
-    return response;
-  } catch (err) {
-    console.error('❌ PATCH error:', err.response?.data || err.message);
-    throw err;
-  }
-}
-
-app.get('/getroles', async (req, res) => {
-  try {
-    const roles = await axios.get(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
-    res.json(roles.data.roles);
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to fetch roles' });
-  }
-});
-
-app.post('/promote', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    console.log('[PROMOTE] userId:', userId);
-
-    const roles = await getGroupRoles();
-    const currentRole = await getUserRole(userId);
-    if (!currentRole) return res.status(400).json({ error: 'User not in group' });
-
-    const currentIndex = roles.findIndex(r => r.id === currentRole.id);
-    if (currentIndex === -1 || currentIndex >= roles.length - 1) {
-      return res.status(400).json({ error: 'User is at highest rank or not found' });
+        const role = response.data.role;
+        res.json({ success: true, role });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.response?.data || err.message });
     }
-
-    const nextRole = roles[currentIndex + 1];
-    await updateRole(userId, nextRole.id);
-    res.json({ success: true, message: `User promoted to ${nextRole.name}` });
-  } catch (err) {
-    console.error('Error promoting user:', err.response?.data || err.message || err);
-
-    return res.status(err.response?.status || 500).json({
-      error: err.response?.data || err.message || 'Internal server error'
-    });
-  }
 });
 
-app.post('/demote', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    console.log('[DEMOTE] userId:', userId);
+app.post('/set-rank', async (req, res) => {
+    const { userId, roleId } = req.body;
+    try {
+        await axios.patch(
+            `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/users/${userId}/roles`,
+            {
+                roleId: roleId,
+            },
+            {
+                headers: {
+                    'x-api-key': API_KEY,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
 
-    const roles = await getGroupRoles();
-    const currentRole = await getUserRole(userId);
-    if (!currentRole) return res.status(400).json({ error: 'User not in group' });
-
-    const currentIndex = roles.findIndex(r => r.id === currentRole.id);
-    if (currentIndex <= 0) {
-      return res.status(400).json({ error: 'User is at lowest rank or not found' });
+        res.json({ success: true, message: `User ${userId} ranked to role ID ${roleId}` });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.response?.data || err.message });
     }
-
-    const prevRole = roles[currentIndex - 1];
-    await updateRole(userId, prevRole.id);
-    res.json({ success: true, message: `User demoted to ${prevRole.name}` });
-  } catch (err) {
-    console.error('Error demoting user:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
 });
 
-app.get('/debug-user/:id', async (req, res) => {
-  const userId = req.params.id;
-
-  try {
-    const res1 = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
-    const groupData = res1.data.data.find(g => g.group.id === GROUP_ID);
-
-    if (!groupData) return res.status(404).json({ error: 'User not in group' });
-
-    res.json({
-      userId,
-      groupId: GROUP_ID,
-      groupRole: groupData.role.name,
-      groupRank: groupData.role.rank,
-    });
-  } catch (err) {
-    console.error('Debug error:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to fetch user role', details: err.response?.data || err.message });
-  }
-});
-
-app.get('/ping', (req, res) => {
-  res.send('pong');
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 API running on port ${PORT}`);
-});
-
-console.log('✅ API_KEY loaded:', !!process.env.API_KEY);
-console.log('✅ GROUP_ID loaded:', process.env.GROUP_ID);
+const PORT = 3000;
+app.listen(PORT, () => console.log(`Rank API is running on port ${PORT}`));
