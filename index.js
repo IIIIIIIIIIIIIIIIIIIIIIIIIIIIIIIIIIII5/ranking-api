@@ -44,6 +44,15 @@ async function updateRole(userId, roleSetId) {
   }
 }
 
+app.get('/getroles', async (req, res) => {
+  try {
+    const roles = await getGroupRoles();
+    res.json(roles);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get roles' });
+  }
+});
+
 app.post('/promote', async (req, res) => {
   try {
     const { userId } = req.body;
