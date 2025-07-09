@@ -1,52 +1,75 @@
-const express = require("express");
-const noblox = require("noblox.js");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-
+const express = require('express');
+const axios = require('axios');
 const app = express();
-const port = process.env.PORT;
 
-const GROUP_ID = process.env.GROUPID;
-const TARGET_RANK = process.env.RANK;
-const PASS_PERCENTAGE = process.env.PERCENTAGE;
+app.use(express.json());
 
-const COOKIE = process.env.COOKIE;
+const API_KEY = process.env.API_KEY;
+const GROUP_ID = process.env.GROUP_ID;
+const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(bodyParser.json());
+const headers = {
+    'x-api-key': API_KEY,
+    'Content-Type': 'application/json'
+};
 
-async function login() {
+async function getGroupRoles() {
+    const res = await axios.get(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
+    return res.data.roles;
+}
+
+async function getUserRole(userId) {
     try {
-        await noblox.setCookie(COOKIE);
-        const user = await noblox.getCurrentUser();
-        console.log(`✅ Logged in as ${user.UserName}`);
+        const res = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
+        const group = res.data.data.find(g => g.group.id == GROUP_ID);
+        return group ? group.role : null;
     } catch (err) {
-        console.error("❌ Failed to log in:", err.message);
+        return null;
     }
 }
 
-app.post("/apply", async (req, res) => {
-    const { userId, username, percentage } = req.body;
+async function updateRole(userId, roleSetId) {
+    return axios.patch(
+        `https://apis.roblox.com/groups/v1/groups/${GROUP_ID}/users/${userId}`,
+        { roleSetId },
+        { headers }
+    );
+}
 
-    if (!userId || !username || percentage === undefined || percentage === null) {
-        return res.status(400).json({ success: false, message: "Missing fields." });
+app.post('/promote', async (req, res) => {
+    const { userId } = req.body;
+
+    const roles = await getGroupRoles();
+    const currentRole = await getUserRole(userId);
+    if (!currentRole) return res.status(400).json({ error: 'User not in group' });
+
+    const currentIndex = roles.findIndex(r => r.id === currentRole.id);
+    if (currentIndex === -1 || currentIndex >= roles.length - 1) {
+        return res.status(400).json({ error: 'User is at highest rank or not found' });
     }
 
-    if (percentage < PASS_PERCENTAGE) {
-        return res.json({ success: false, message: "Quiz failed. Score too low." });
-    }
-
-    try {
-        await noblox.setRank(GROUP_ID, userId, TARGET_RANK);
-        console.log(`✅ Ranked ${username} (ID: ${userId}) to Correctional Officer`);
-        return res.json({ success: true, message: "Ranked successfully." });
-    } catch (err) {
-        console.error("❌ Error ranking user:", err.message);
-        return res.status(500).json({ success: false, message: "Ranking failed." });
-    }
+    const nextRole = roles[currentIndex + 1];
+    await updateRole(userId, nextRole.id);
+    res.json({ success: true, message: `User promoted to ${nextRole.name}` });
 });
 
-app.listen(port, () => {
-    console.log(`🚀 API running on port ${port}`);
-    login();
+app.post('/demote', async (req, res) => {
+    const { userId } = req.body;
+
+    const roles = await getGroupRoles();
+    const currentRole = await getUserRole(userId);
+    if (!currentRole) return res.status(400).json({ error: 'User not in group' });
+
+    const currentIndex = roles.findIndex(r => r.id === currentRole.id);
+    if (currentIndex <= 0) {
+        return res.status(400).json({ error: 'User is at lowest rank or not found' });
+    }
+
+    const prevRole = roles[currentIndex - 1];
+    await updateRole(userId, prevRole.id);
+    res.json({ success: true, message: `User demoted to ${prevRole.name}` });
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 API running on http://localhost:${PORT}`);
 });
