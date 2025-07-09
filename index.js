@@ -18,6 +18,19 @@ async function getGroupRoles() {
   return res.data.roles;
 }
 
+try {
+  await axios.patch(url, data, { headers });
+} catch (err) {
+  if (err.response && err.response.status === 409) {
+    const csrfToken = err.response.headers['x-csrf-token'];
+
+    const newHeaders = { ...headers, 'X-CSRF-TOKEN': csrfToken };
+    await axios.patch(url, data, { headers: newHeaders });
+  } else {
+    throw err;
+  }
+}
+
 async function getUserRole(userId) {
   try {
     const res = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
