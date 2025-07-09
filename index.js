@@ -28,61 +28,64 @@ app.get('/get-rank/:userId', async (req, res) => {
 });
 
 app.post('/promote', async (req, res) => {
-    const { userId } = req.body;
+  const { userId } = req.body;
+  console.log("Promote request for userId:", userId);
 
-    try {
-        const roleRes = await axios.get(
-            `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/users/${userId}/roles`,
-            {
-                headers: {
-                    'x-api-key': API_KEY,
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
+  try {
+    const roleRes = await axios.get(
+      `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/users/${userId}/roles`,
+      {
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    console.log("Current role response:", roleRes.data);
 
-        const currentRoleId = roleRes.data.role.id;
+    const currentRoleId = roleRes.data.role.id;
 
-        const allRolesRes = await axios.get(
-            `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/roles`,
-            {
-                headers: {
-                    'x-api-key': API_KEY,
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
+    const allRolesRes = await axios.get(
+      `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/roles`,
+      {
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    console.log("All roles response:", allRolesRes.data);
 
-        const roles = allRolesRes.data.roles;
-        const currentIndex = roles.findIndex(role => role.id === currentRoleId);
+    const roles = allRolesRes.data.roles;
+    const currentIndex = roles.findIndex(role => role.id === currentRoleId);
+    console.log("Current role index:", currentIndex);
 
-        if (currentIndex === -1 || currentIndex === roles.length - 1) {
-            return res.status(400).json({ success: false, message: 'User is already at the highest rank or role not found.' });
-        }
-
-        const nextRoleId = roles[currentIndex + 1].id;
-
-        await axios.patch(
-            `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/users/${userId}/roles`,
-            {
-                roleId: nextRoleId
-            },
-            {
-                headers: {
-                    'x-api-key': API_KEY,
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
-
-        res.json({
-            success: true,
-            message: `User ${userId} promoted to role ID ${nextRoleId}`
-        });
-
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.response?.data || err.message });
+    if (currentIndex === -1 || currentIndex === roles.length - 1) {
+      return res.status(400).json({ success: false, message: 'User is already at the highest rank or role not found.' });
     }
+
+    const nextRoleId = roles[currentIndex + 1].id;
+    console.log("Promoting to role ID:", nextRoleId);
+
+    await axios.patch(
+      `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/users/${userId}/roles`,
+      { roleId: nextRoleId },
+      {
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    res.json({
+      success: true,
+      message: `User ${userId} promoted to role ID ${nextRoleId}`
+    });
+  } catch (err) {
+    console.error("Error in promote:", err.response?.data || err.message);
+    res.status(500).json({ success: false, error: err.response?.data || err.message });
+  }
 });
 
 app.post('/set-rank', async (req, res) => {
