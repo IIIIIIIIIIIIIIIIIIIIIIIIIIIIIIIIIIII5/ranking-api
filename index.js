@@ -30,11 +30,18 @@ async function getUserRole(userId) {
 }
 
 async function updateRole(userId, roleSetId) {
-  return axios.patch(
-    `https://apis.roblox.com/groups/v1/groups/${GROUP_ID}/users/${userId}`,
-    { roleSetId },
-    { headers }
-  );
+  try {
+    const url = `https://apis.roblox.com/groups/v1/groups/${GROUP_ID}/users/${userId}`;
+    console.log(`🔁 PATCH to ${url} with roleSetId: ${roleSetId}`);
+    
+    const response = await axios.patch(url, { roleSetId }, { headers });
+    console.log('✅ PATCH success:', response.status);
+    return response;
+  } catch (err) {
+    console.error('❌ PATCH error:');
+    console.error(err.response?.data || err.message || err);
+    throw err;
+  }
 }
 
 app.post('/promote', async (req, res) => {
